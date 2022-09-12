@@ -30,13 +30,14 @@ class MetaTrainer(Trainer):
         self.kge_model.load_state_dict(state['kge_model'])
 
     def train(self):
-        step = 0
         best_step = 0
         best_eval_rst = {'mrr': 0, 'hits@1': 0, 'hits@5': 0, 'hits@10': 0}
         bad_count = 0
         self.logger.info('start meta-training')
 
         for e in range(self.args.metatrain_num_epoch):
+            step = 0
+            # self.logger.info('number of batches={:}'.format(len(self.train_subgraph_dataloader)))
             for batch in self.train_subgraph_dataloader:
                 batch_loss = 0
 
@@ -48,7 +49,6 @@ class MetaTrainer(Trainer):
                     ent_emb = sup_g_list[batch_i].ndata['h']
                     # kge loss
                     loss = self.get_loss(que_tri, que_neg_tail_ent, que_neg_head_ent, ent_emb)
-
                     batch_loss += loss
 
                 batch_loss /= len(batch)
@@ -57,7 +57,7 @@ class MetaTrainer(Trainer):
                 self.optimizer.step()
 
                 step += 1
-                self.logger.info('step: {} | loss: {:.4f}'.format(step, batch_loss.item()))
+                self.logger.info('epoch:{} | step: {} | loss: {:.4f}'.format(e,step,batch_loss.item()))
                 self.write_training_loss(batch_loss.item(), step)
 
                 if step % self.args.metatrain_check_per_step == 0:
@@ -79,8 +79,8 @@ class MetaTrainer(Trainer):
         self.logger.info('save best model')
         self.save_model(best_step)
 
-        self.logger.info('best validation | mrr: {:.4f}, hits@1: {:.4f}, hits@5: {:.4f}, hits@10: {:.4f}'.format(
-            best_eval_rst['mrr'], best_eval_rst['hits@1'],
+        self.logger.info('best validation | epoch:{:}, mrr: {:.4f}, hits@1: {:.4f}, hits@5: {:.4f}, hits@10: {:.4f}'.format(
+            e,best_eval_rst['mrr'], best_eval_rst['hits@1'],
             best_eval_rst['hits@5'], best_eval_rst['hits@10']))
 
         self.before_test_load()
@@ -106,7 +106,7 @@ class MetaTrainer(Trainer):
             all_results[k] = v / self.args.num_valid_subgraph
 
         self.logger.info('valid on valid subgraphs')
-        self.logger.info('mrr: {:.4f}, hits@1: {:.4f}, hits@5: {:.4f}, hits@10: {:.4f}'.format(
+        self.logger.info(' mrr: {:.4f}, hits@1: {:.4f}, hits@5: {:.4f}, hits@10: {:.4f}'.format(
             all_results['mrr'], all_results['hits@1'],
             all_results['hits@5'], all_results['hits@10']))
 

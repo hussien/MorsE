@@ -166,6 +166,17 @@ class Trainer(object):
 
         return results
 
+    def  valuate_test_triples(self, num_cand='all'):
+        """do evaluation on test triples of ind-test-graph"""
+        ent_emb = self.get_ent_emb(self.test_train_g)
+        results = self.evaluate(ent_emb, self.test_dataloader, num_cand=num_cand)
+        self.logger.info(f'test on ind-test-graph, sample {num_cand}')
+        self.logger.info('mrr: {:.4f}, hits@1: {:.4f}, hits@5: {:.4f}, hits@10: {:.4f}'.format(
+            results['mrr'], results['hits@1'],
+            results['hits@5'], results['hits@10']))
+
+        return results
+
     def evaluate_indtest_test_triples(self, num_cand='all'):
         """do evaluation on test triples of ind-test-graph"""
         ent_emb = self.get_ent_emb(self.indtest_train_g)

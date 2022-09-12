@@ -4,15 +4,14 @@ from meta_trainer import MetaTrainer
 from post_trainer import PostTrainer
 import os
 from subgraph import gen_subgraph_datasets
-from pre_process import data2pkl
-
-
+from pre_process import data2pkl,data2pkl_Trans_to_Ind
+from resource import *
+import datetime
+from utils import Log
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_name', default='fb237_v1')
-
-    parser.add_argument('--name', default='fb237_v1_transe', type=str)
-
+    parser.add_argument('--data_name', default='Yago3-10')
+    parser.add_argument('--name', default='Yago3-10_FG_transe', type=str)
     parser.add_argument('--step', default='meta_train', type=str, choices=['meta_train', 'fine_tune'])
     parser.add_argument('--metatrain_state', default='./state/fb237_v1_transe/fb237_v1_transe.best', type=str)
 
@@ -34,7 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('--metatrain_num_epoch', default=10)
     parser.add_argument('--metatrain_bs', default=64, type=int)
     parser.add_argument('--metatrain_lr', default=0.01, type=float)
-    parser.add_argument('--metatrain_check_per_step', default=10, type=int)
+    parser.add_argument('--metatrain_check_per_step', default=50, type=int)
     parser.add_argument('--indtest_eval_bs', default=512, type=int)
 
     # params for fine-tune
@@ -54,7 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', default=10, type=float)
     parser.add_argument('--adv_temp', default=1, type=float)
 
-    parser.add_argument('--gpu', default='cuda:0', type=str)
+    parser.add_argument('--gpu', default='cpu', type=str)
     parser.add_argument('--seed', default=1234, type=int)
 
     args = parser.parse_args()
@@ -68,25 +67,35 @@ if __name__ == '__main__':
         args.rel_dim = args.emb_dim * 2
 
     # specify the paths for original data and subgraph db
-    args.data_path = f'./data/{args.data_name}.pkl'
-    args.db_path = f'./data/{args.data_name}_subgraph'
+    logger = Log(args.log_dir, args.name).get_logger()
+    BGP='FG'
+    Target_rel='isConnectedTo'
+    for BGP in ['SQ','BSQ','BQ','BPQ','FG']:
+        print()
+        start_t = datetime.datetime.now()
+        sample_start_t = datetime.datetime.now()
+        args.data_path = 'data/'+args.data_name+'_'+BGP+'.pkl'
+        args.db_path = 'data/'+args.data_name+'_'+BGP+'_subgraph'
+        # load original data and make index
+        if not os.path.exists(args.data_path):
+            # data2pkl(args.data_name,Target_rel,BGP)
+            data2pkl_Trans_to_Ind(args.data_name,BGP,Target_rel,logger=logger)
 
-    # load original data and make index
-    if not os.path.exists(args.data_path):
-        data2pkl(args.data_name)
+        if not os.path.exists(args.db_path):
+            gen_subgraph_datasets(args)
 
-    if not os.path.exists(args.db_path):
-        gen_subgraph_datasets(args)
+        args.num_rel = get_num_rel(args)
+        set_seed(args.seed)
+        logger.info("Sampling Time Sec="+str((datetime.datetime.now() - sample_start_t).total_seconds()))
+        if args.step == 'meta_train':
+            meta_trainer = MetaTrainer(args)
+            meta_trainer.train()
+            print(getrusage(RUSAGE_SELF))
+        elif args.step == 'fine_tune':
+            post_trainer = PostTrainer(args)
+            post_trainer.train()
+            logger.info(getrusage(RUSAGE_SELF))
 
-    args.num_rel = get_num_rel(args)
-
-    set_seed(args.seed)
-
-    if args.step == 'meta_train':
-        meta_trainer = MetaTrainer(args)
-        meta_trainer.train()
-    elif args.step == 'fine_tune':
-        post_trainer = PostTrainer(args)
-        post_trainer.train()
-
+        end_t = datetime.datetime.now()
+        logger.info("Total Time Sec="+str((datetime.datetime.now() - start_t).total_seconds()))
 
