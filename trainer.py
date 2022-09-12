@@ -14,13 +14,16 @@ from datasets import KGEEvalDataset
 
 
 class Trainer(object):
-    def __init__(self, args):
+    def __init__(self, args,logger=None):
         self.args = args
 
         # writer and logger
         self.name = args.name
         self.writer = SummaryWriter(os.path.join(args.tb_log_dir, self.name))
-        self.logger = Log(args.log_dir, self.name).get_logger()
+        if logger!=None:
+            self.logger=logger
+        else:
+            self.logger = Log(args.log_dir, self.name).get_logger()
         self.logger.info(json.dumps(vars(args)))
 
         # state dir
@@ -38,6 +41,8 @@ class Trainer(object):
         self.rgcn = RGCN(args).to(args.gpu)
         self.kge_model = KGEModel(args).to(args.gpu)
 
+    def logInfo(self,message):
+        self.logger.info(message)
     def save_checkpoint(self, step):
         state = {'ent_init': self.ent_init.state_dict(),
                  'rgcn': self.rgcn.state_dict(),

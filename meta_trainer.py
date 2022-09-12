@@ -6,11 +6,11 @@ from torch import optim
 from trainer import Trainer
 import dgl
 from collections import defaultdict as ddict
-
-
+from resource import *
+import datetime
 class MetaTrainer(Trainer):
-    def __init__(self, args):
-        super(MetaTrainer, self).__init__(args)
+    def __init__(self, args,logger=None):
+        super(MetaTrainer, self).__init__(args,logger)
         # dataloader
         train_subgraph_dataset = TrainSubgraphDataset(args)
         valid_subgraph_dataset = ValidSubgraphDataset(args)
@@ -29,7 +29,7 @@ class MetaTrainer(Trainer):
         self.rgcn.load_state_dict(state['rgcn'])
         self.kge_model.load_state_dict(state['kge_model'])
 
-    def train(self):
+    def train(self,start_time=None):
         best_step = 0
         best_eval_rst = {'mrr': 0, 'hits@1': 0, 'hits@5': 0, 'hits@10': 0}
         bad_count = 0
@@ -37,10 +37,10 @@ class MetaTrainer(Trainer):
 
         for e in range(self.args.metatrain_num_epoch):
             step = 0
+            self.logger.info(getrusage(RUSAGE_SELF))
             # self.logger.info('number of batches={:}'.format(len(self.train_subgraph_dataloader)))
             for batch in self.train_subgraph_dataloader:
                 batch_loss = 0
-
                 batch_sup_g = dgl.batch([get_g_bidir(d[0], self.args) for d in batch]).to(self.args.gpu)
                 self.get_ent_emb(batch_sup_g)
                 sup_g_list = dgl.unbatch(batch_sup_g)
@@ -63,6 +63,8 @@ class MetaTrainer(Trainer):
                 if step % self.args.metatrain_check_per_step == 0:
                     eval_res = self.evaluate_valid_subgraphs()
                     self.write_evaluation_result(eval_res, step)
+                    self.logger.info(getrusage(RUSAGE_SELF))
+                    self.logger.info("Train Time Sec="+str((datetime.datetime.now() - start_time).total_seconds()))
 
                     if eval_res['mrr'] > best_eval_rst['mrr']:
                         best_eval_rst = eval_res
