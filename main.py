@@ -10,7 +10,7 @@ import datetime
 from utils import Log
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_name', default='Yago3-10')
+    parser.add_argument('--data_name', default='Yago10')
     parser.add_argument('--name', default='Yago3-10_FG_transe', type=str)
     parser.add_argument('--step', default='meta_train', type=str, choices=['meta_train', 'fine_tune'])
     parser.add_argument('--metatrain_state', default='./state/fb237_v1_transe/fb237_v1_transe.best', type=str)
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     BGP='FG'
     Target_rel='isConnectedTo'
     for BGP in ['SQ','BSQ','BQ','BPQ','FG']:
-        print()
+        logger.info("args="+str(args))
         start_t = datetime.datetime.now()
         sample_start_t = datetime.datetime.now()
         args.data_path = 'data/'+args.data_name+'_'+BGP+'.pkl'
@@ -79,7 +79,8 @@ if __name__ == '__main__':
         # load original data and make index
         if not os.path.exists(args.data_path):
             # data2pkl(args.data_name,Target_rel,BGP)
-            data2pkl_Trans_to_Ind(args.data_name,BGP,Target_rel,logger=logger)
+            data2pkl_Trans_to_Ind(args.data_name,BGP,Target_rel,logger=logger,
+                                  datapath='/shared_mnt/github_repos/RGCN_LP/data/')
 
         if not os.path.exists(args.db_path):
             gen_subgraph_datasets(args)
